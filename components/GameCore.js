@@ -123,6 +123,8 @@ class GameCore {
 
   setupOnGameScreen() {
     
+    // TODO: render by player prospective, will handle by networking later ...
+
     // draw field
     let player1Field = new FieldFrame(this.ctx);
     player1Field.draw();
@@ -134,11 +136,19 @@ class GameCore {
     let player2Field = new FieldFrame(this.ctx);
     player2Field.playerSide = "top";
     player2Field.draw();
-
     this.currentOnGameState.player2["ui_state"] = {
         unit_slots: player2Field.unitSlotsUI
     };
 
-    console.log("full data", this.currentOnGameState);
+
+    // render hand
+    this.currentOnGameState.player1.ui_state["hand"] = new Hand(
+      this.ctx, 
+      this.currentOnGameState.player1.hand
+    );
+
+    this.currentOnGameState.player1.ui_state.hand.draw();
+
+
   }
 }

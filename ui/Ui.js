@@ -166,7 +166,7 @@ class FieldFrame {
         this.playerSide = "bottom";
     }
 
-    getUnitSlotSmall(){
+    static getUnitSlotSmall(){
         return {
             width: 135,
             height: 210
@@ -182,7 +182,7 @@ class FieldFrame {
         
         let unitSlotCount = 3;
         
-        let usize = this.getUnitSlotSmall();
+        let usize = FieldFrame.getUnitSlotSmall();
         this.setUnitSlotSize(usize.width, usize.height);
 
         let slot_gap = 20;
@@ -217,7 +217,7 @@ class FieldFrame {
                 width: this.unitSlotSize.width,
                 height: this.unitSlotSize.height,
                 empty: true
-            })
+            });
         }
     }
 
@@ -235,9 +235,27 @@ class CardFrame {
 
   borderOffset = 2;
 
+  // render by data
+  renderDataNotFound = "show-data";
+
+  // expect CardEffect
   constructor(ctx, cardData) {
     this.ctx = ctx;
     this.cardData = cardData;
+
+    // init if not found
+    if(this.cardData["imgSourcePositionX"] == undefined){
+      this.cardData.imgSourcePositionX = 0;
+    }
+    if(this.cardData["imgSourcePositionY"] == undefined){
+      this.cardData.imgSourcePositionY = 0;
+    }
+    if(this.cardData["imgSourceWidth"] == undefined){
+      this.cardData.imgSourceWidth = 0;
+    }
+    if(this.cardData["imgSourceHeight"] == undefined){
+      this.cardData.imgSourceHeight = 0;
+    }
   }
 
   // card border
@@ -275,5 +293,39 @@ class CardFrame {
       this.cardData.imgSourceWidth,
       this.cardData.imgSourceHeight
     );
+  }
+}
+
+class Hand {
+
+  constructor(ctx, hand){
+    this.ctx = ctx;
+    this.hand = hand;
+
+    this.playerSide = "bottom";
+
+    // default
+    this.x_init_pos = this.ctx.game_container_width / 2;
+    this.y_init_pos = this.ctx.game_container_height / 2;
+  }
+
+  draw(){
+
+    let card_size = FieldFrame.getUnitSlotSmall();
+
+    switch (this.playerSide) {
+      case "bottom":
+        this.y_init_pos += 200;
+        break;
+      case "top":
+        this.y_init_pos = -50;
+        break;
+    }
+
+    console.log("hand", this.hand);
+    for(let card of this.hand){
+      let render_card = new CardFrame(this.ctx, card);
+      render_card.draw();
+    }
   }
 }

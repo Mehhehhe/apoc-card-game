@@ -33,14 +33,19 @@ const CARD_STATE = {
     PLACE_TO_FIELD: "PLACE_TO_FIELD",
     PLACE_TO_RESOURCE: "PLACE_TO_RESOURCE",
     PAY_CARD_COST: "PAY_CARD_COST",
+    PAY_CARD_COST_SUCCESS: "PAY_CARD_COST_SUCCESS",
     ACTIVATE_ONPLAY: "ACTIVATE_ONPLAY",
     IDLE_ON_FIELD: "IDLE_ON_FIELD",
+    ACTIVATE_ONACT: "ACTIVATE_ONACT",
+    PAY_CARD_ACT_COST: "PAY_CARD_ACT_COST",
+    PAY_CARD_ACT_COST_SUCCESS: "PAY_CARD_ACT_COST_SUCCESS",
     REST: "REST",
     ATTACK: "ATTACK",
     DMG_CALC: "DMG_CALC",
     AFTER_BATTLE: "AFTER_BATTLE",
     END_PHASE: "END_PHASE",
-    UNKNOWN: "UNKNOWN"
+    UNKNOWN: "UNKNOWN",
+    IN_DROP_ZONE: "IN_DROP_ZONE"
 };
 
 getDummyDeck = () => {
@@ -93,6 +98,9 @@ class CardEffect {
         }
     };
 
+    // hold on mana = mana on this card
+    mana_on_this = 0;
+
     state = CARD_STATE.IN_DECK;
 
     // effect activation
@@ -113,6 +121,7 @@ class CardEffect {
         if(source.effect.activations.play_effect.length > 0){
             // bind play effect to unit
             this.callback.play = function(){
+                this.state = CARD_STATE.ACTIVATE_ONPLAY;
                 let executeOrders = this.effect.activations.play_effect;
                 for(let idx = 0; idx < executeOrders.length; idx++){
                     switch(executeOrders[idx].action){
@@ -122,10 +131,53 @@ class CardEffect {
                             break;
                     }
                 }
+
+                // after activated
+                this.state = CARD_STATE.IDLE_ON_FIELD;
             }
         }
         if(source.effect.activations.act_effect.length > 0){
-            this.callback["act"] = null;
+            this.callback["act"] = function(){
+                this.state = CARD_STATE.ACTIVATE_ONACT;
+                let executeOrders = this.effect.activations.act_effect;
+                for(let idx = 0; idx < executeOrders.length; idx++){
+                    switch(executeOrders[idx].action){
+                        // { "action": "pay_cost", "type": "mana", "amount": 1 }
+                        // { "action": "pay_cost", "type": "discard", "amount": 1 }
+                        // { "action": "pay_cost", "type": "rest", "to_rest": true }
+                        // { "action": "pay_cost", "type": "multi", "amount": { "mana": 2, "discard": 1, "rest": true } }
+                        case "pay_cost":
+                            if(executeOrders[idx].type == "multi"){
+
+                            } else {
+                                switch(executeOrders[idx].type){
+                                    case "mana":
+                                        // check resolvable
+                                        if(executeOrders[idx].amount <= this.mana_on_this){
+                                            // ok case
+                                            this.mana_on_this -= executeOrders[idx].amount;
+                                        }
+                                        break;
+                                    case "discard":
+                                        if(owner.getHandSize() > 1){
+                                            // discard ok
+
+                                            // suppose pop up prompt, ask which to discard
+                                            let target_card = prompt("discard what?");
+                                            // find the card position
+                                            owner.discard(0);
+                                            
+                                        }
+                                        break;
+                                    case "rest":
+                                        this.state = CARD_STATE.REST;
+                                        break;
+                                }
+                            }
+                            break;
+                    }
+                }
+            };
         }
 
         return this;
@@ -325,6 +377,17 @@ class Player{
         return Object.keys(this.hand).length;
     }
 
+    discard = (pos) => {
+        let target_card = this.hand[pos];
+        if(target_card != null){
+            target_card.state = CARD_STATE.IN_DROP_ZONE;
+            this.dropzone.push(target_card);
+            delete this.hand[pos];
+
+        }
+        return target_card.state;
+    }
+
     payCardCost = (cost) => {
         if(cost >= this.resources){
             return -1;
@@ -332,6 +395,47 @@ class Player{
         
         let res_left = this.resources - cost;
         return res_left;
+    }
+
+    playCardFromHand(pos, toSlot, isFreeCost = false){
+
+        // target
+        let target_card = this.hand[pos];
+
+        let isConfirmPlay = confirm('Play '+target_card.name);
+        if(!isConfirmPlay){
+            return;
+        }
+
+        target_card.state = CARD_STATE.PAY_CARD_COST;
+
+        // assert that card is existed
+        if(target_card != null){
+            // pay the cost
+            let resourceLeft = this.payCardCost(target_card);
+            if(isFreeCost){
+                resourceLeft = this.resources;
+            }
+
+            // start transaction
+            this.resources = resourceLeft;
+            target_card.state = CARD_STATE.PAY_CARD_COST_SUCCESS;        
+        }
+
+        // assert that card state change
+        if(target_card.state == CARD_STATE.PAY_CARD_COST_SUCCESS){
+            // remove from hand
+            delete this.hand[pos];
+            // add to field
+            let isResolvedPlaceToField = this.field.placeUnitAtSlot(target_card, toSlot);
+            if(isResolvedPlaceToField){
+
+                // place mana on this card
+                target_card.mana_on_this = target_card.cost;
+
+                target_card.on(target_card.callback.play);
+            }
+        }
     }
 }
 
