@@ -113,6 +113,9 @@ class GameCore {
     // if(this.state != GAME_STATE.GAME){
     //     return;
     // }
+
+    this.currentOnGameState.canvas = this.canvas;
+
     // set up field
     this.currentOnGameState["player1"] = new Player();
     this.currentOnGameState["player2"] = new Player();
@@ -122,6 +125,9 @@ class GameCore {
   }
 
   setupOnGameScreen() {
+
+    this.titleButtons.pop();
+    // this.canvas.removeEventListener("click");
     
     // TODO: render by player prospective, will handle by networking later ...
 
@@ -147,8 +153,18 @@ class GameCore {
       this.currentOnGameState.player1.hand
     );
 
-    this.currentOnGameState.player1.ui_state.hand.draw();
+    this.currentOnGameState.player1.ui_state.handUI = this.currentOnGameState.player1.ui_state.hand.draw();
 
+    this.currentOnGameState.canvas.addEventListener("click", (event) => {
+      let c_x = event.pageX - (this.canvas.clientLeft + this.canvas.offsetLeft);
+      let c_y = event.pageY - (this.canvas.clientTop + this.canvas.offsetTop);
+
+      this.currentOnGameState.player1.ui_state.handUI.forEach((card) => {
+        if(card.isWithinRange(c_x, c_y) && !!card.onClick){
+          card.onClick();
+        }
+      });
+    });
 
   }
 }

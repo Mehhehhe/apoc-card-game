@@ -238,6 +238,10 @@ class CardFrame {
   // render by data
   renderDataNotFound = "show-data";
 
+  onClick = () => {};
+  onClickAnimation;
+  waitForAnimation = 100;
+
   // expect CardEffect
   constructor(ctx, cardData) {
     this.ctx = ctx;
@@ -255,6 +259,10 @@ class CardFrame {
     }
     if(this.cardData["imgSourceHeight"] == undefined){
       this.cardData.imgSourceHeight = 0;
+    }
+
+    if(this.cardData.clanColor == undefined){
+      this.cardData.clanColor = "red";
     }
   }
 
@@ -274,6 +282,7 @@ class CardFrame {
   }
 
   // card picture
+  // FIXME: bug here! cannot find loadImage
   async createCardImage() {
     let img = await loadImage(this.cardData.imgSource);
     if (img != undefined || img != null) {
@@ -285,8 +294,21 @@ class CardFrame {
     }
   }
 
+  setOnClick(clk) {
+    this.onClick = clk;
+  }
+
+  isWithinRange(mouseX, mouseY) {
+    return !(
+      mouseX < this.cardData.imgSourcePositionX ||
+      mouseX > this.cardData.imgSourcePositionX + this.cardData.imgSourceWidth ||
+      mouseY < this.cardData.imgSourcePositionY ||
+      mouseY > this.cardData.imgSourcePositionY + this.cardData.imgSourceHeight
+    );
+  }
+
   draw() {
-    this.createCardImage();
+    // this.createCardImage();
     this.createCardBorder(
       this.cardData.imgSourcePositionX,
       this.cardData.imgSourcePositionY,
@@ -303,6 +325,8 @@ class Hand {
     this.hand = hand;
 
     this.playerSide = "bottom";
+
+    this.renderedCards = [];
 
     // default
     this.x_init_pos = this.ctx.game_container_width / 2;
@@ -322,10 +346,35 @@ class Hand {
         break;
     }
 
-    console.log("hand", this.hand);
-    for(let card of this.hand){
+    // console.log("hand", this.hand.prototype);
+    for(let [index,card] of Object.entries(this.hand)){
+
+      card.imgSourceWidth = card_size.width;
+      card.imgSourceHeight = card_size.height;
+
+      card.imgSourcePositionX = this.x_init_pos - 223 + (77.5 * index);
+      card.imgSourcePositionY = this.y_init_pos;
+
+      card.renderLayer = index;
+
+      // console.log("generating", card);
+
+      // debug
+      // let loadingText = new Text(this.ctx, index, "48px", "Arial");
+      // loadingText.setPosition(this.x_init_pos - 150 + (75 * index), this.y_init_pos + 125);
+      // loadingText.setColor("white");
+      // loadingText.draw();
+
       let render_card = new CardFrame(this.ctx, card);
+      // attach onclick
+      render_card.setOnClick(() => {
+          console.log("click on ", card.name, " idx:",card.renderLayer);
+      });
       render_card.draw();
+
+      this.renderedCards.push(render_card);
     }
+
+    return this.renderedCards;
   }
 }
